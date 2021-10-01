@@ -3,7 +3,6 @@
 #include "rogliekPlayerController.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "Runtime/Engine/Classes/Components/DecalComponent.h"
-#include "HeadMountedDisplayFunctionLibrary.h"
 #include "rogliekCharacter.h"
 #include "Engine/World.h"
 
@@ -16,12 +15,6 @@ ArogliekPlayerController::ArogliekPlayerController()
 void ArogliekPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
-
-	// keep updating the destination every tick while desired
-	if (bMoveToMouseCursor)
-	{
-		MoveToMouseCursor();
-	}
 }
 
 void ArogliekPlayerController::SetupInputComponent()
@@ -29,84 +22,21 @@ void ArogliekPlayerController::SetupInputComponent()
 	// set up gameplay key bindings
 	Super::SetupInputComponent();
 
-	InputComponent->BindAction("SetDestination", IE_Pressed, this, &ArogliekPlayerController::OnSetDestinationPressed);
-	InputComponent->BindAction("SetDestination", IE_Released, this, &ArogliekPlayerController::OnSetDestinationReleased);
-
-	// support touch devices 
-	InputComponent->BindTouch(EInputEvent::IE_Pressed, this, &ArogliekPlayerController::MoveToTouchLocation);
-	InputComponent->BindTouch(EInputEvent::IE_Repeat, this, &ArogliekPlayerController::MoveToTouchLocation);
-
-	InputComponent->BindAction("ResetVR", IE_Pressed, this, &ArogliekPlayerController::OnResetVR);
+	// Movement (WASD)
+	InputComponent->BindAxis("MoveForward", this, &ArogliekPlayerController::MoveForward);
+	InputComponent->BindAxis("MoveRight", this, &ArogliekPlayerController::MoveRight);
 }
 
-void ArogliekPlayerController::OnResetVR()
+
+// Movement funcs
+void ArogliekPlayerController::MoveForward(float AxisValue)
 {
-	UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition();
+	APawn* const pawn = GetPawn();
+	if ((pawn != nullptr) && AxisValue != 0.0f) pawn->AddMovementInput(FVector(1.0f, 0.0f, 0.0f), AxisValue);
 }
 
-void ArogliekPlayerController::MoveToMouseCursor()
+void ArogliekPlayerController::MoveRight(float AxisValue)
 {
-	if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
-	{
-		if (ArogliekCharacter* MyPawn = Cast<ArogliekCharacter>(GetPawn()))
-		{
-			if (MyPawn->GetCursorToWorld())
-			{
-				UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, MyPawn->GetCursorToWorld()->GetComponentLocation());
-			}
-		}
-	}
-	else
-	{
-		// Trace to see what is under the mouse cursor
-		FHitResult Hit;
-		GetHitResultUnderCursor(ECC_Visibility, false, Hit);
-
-		if (Hit.bBlockingHit)
-		{
-			// We hit something, move there
-			SetNewMoveDestination(Hit.ImpactPoint);
-		}
-	}
-}
-
-void ArogliekPlayerController::MoveToTouchLocation(const ETouchIndex::Type FingerIndex, const FVector Location)
-{
-	FVector2D ScreenSpaceLocation(Location);
-
-	// Trace to see what is under the touch location
-	FHitResult HitResult;
-	GetHitResultAtScreenPosition(ScreenSpaceLocation, CurrentClickTraceChannel, true, HitResult);
-	if (HitResult.bBlockingHit)
-	{
-		// We hit something, move there
-		SetNewMoveDestination(HitResult.ImpactPoint);
-	}
-}
-
-void ArogliekPlayerController::SetNewMoveDestination(const FVector DestLocation)
-{
-	APawn* const MyPawn = GetPawn();
-	if (MyPawn)
-	{
-		float const Distance = FVector::Dist(DestLocation, MyPawn->GetActorLocation());
-
-		// We need to issue move command only if far enough in order for walk animation to play correctly
-		if ((Distance > 120.0f))
-		{
-			UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, DestLocation);
-		}
-	}
-}
-
-void ArogliekPlayerController::OnSetDestinationPressed()
-{
-	// set flag to keep updating destination until released
-	bMoveToMouseCursor = true;
-}
-
-void ArogliekPlayerController::OnSetDestinationReleased()
-{
-	// clear flag to indicate we should stop updating the destination
-	bMoveToMouseCursor = false;
+	APawn* const pawn = GetPawn();
+	if ((pawn != nullptr) && AxisValue != 0.0f) pawn->AddMovementInput(FVector(0.0f, 1.0f, 0.0f), AxisValue);
 }
